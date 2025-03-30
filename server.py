@@ -1,6 +1,7 @@
 import os
 import yaml
 import logging
+import traceback
 from typing import Optional
 from openapi_spec_validator import validate_spec
 from openapi_spec_validator.readers import read_from_filename
@@ -14,19 +15,17 @@ mcp = FastMCP("OpenAPI Validator Server")
 
 def format_validation_error(error):
     """
-    Format validation errors to provide more detailed feedback
+    Format validation errors to provide more detailed feedback.
+    If the error has an 'errors' attribute (a list of issues), they are concatenated.
+    Otherwise, the error is formatted using traceback.
     """
-    error_str = str(error)
-    
-    # Check for common patterns in validation error messages
-    if hasattr(error, 'message'):
-        return error.message
-    elif hasattr(error, 'args') and len(error.args) > 0:
-        if isinstance(error.args[0], dict) and 'message' in error.args[0]:
-            return error.args[0]['message']
-        return str(error.args[0])
-    else:
-        return error_str
+    # Check if the error has detailed errors provided by the validator
+    if hasattr(error, 'errors'):
+        errors = error.errors
+        if isinstance(errors, list):
+            return "Validation errors: " + "; ".join(str(err) for err in errors)
+    # Fallback: use traceback to show the error type and message
+    return "".join(traceback.format_exception_only(type(error), error)).strip()
 
 @mcp.tool()
 def validate_openapi_spec(ctx: Context, spec: Optional[str] = None, file_path: Optional[str] = None, directory: Optional[str] = None) -> str:
