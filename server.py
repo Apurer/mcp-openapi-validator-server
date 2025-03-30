@@ -5,6 +5,7 @@ import traceback
 from typing import Optional
 from openapi_spec_validator import validate_spec
 from openapi_spec_validator.readers import read_from_filename
+from openapi_spec_validator.validation.exceptions import ValidatorDetectError
 from mcp.server.fastmcp import FastMCP, Context
 
 # Configure logging
@@ -16,14 +17,23 @@ mcp = FastMCP("OpenAPI Validator Server")
 def format_validation_error(error):
     """
     Format validation errors to provide more detailed feedback.
-    If the error has an 'errors' attribute (a list of issues), they are concatenated.
-    Otherwise, the error is formatted using traceback.
+    If the error is a ValidatorDetectError, advise on the possible missing or invalid OpenAPI version field.
+    Otherwise, if the error has an 'errors' attribute (a list of issues), they are concatenated.
+    Fallback to formatting the exception using traceback.
     """
-    # Check if the error has detailed errors provided by the validator
+    # Specific handling for ValidatorDetectError
+    if isinstance(error, ValidatorDetectError):
+        return (
+            f"{str(error)}. It appears the validator could not determine the OpenAPI version. "
+            "Please ensure your spec includes a valid 'openapi' (for OpenAPI 3.x) or 'swagger' (for OpenAPI 2.x) field."
+        )
+    
+    # Check if the error provides a list of detailed errors
     if hasattr(error, 'errors'):
         errors = error.errors
         if isinstance(errors, list):
             return "Validation errors: " + "; ".join(str(err) for err in errors)
+    
     # Fallback: use traceback to show the error type and message
     return "".join(traceback.format_exception_only(type(error), error)).strip()
 
