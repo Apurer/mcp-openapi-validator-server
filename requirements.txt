@@ -1,0 +1,3 @@
+mcp
+openapi-spec-validator 
+pyyaml
